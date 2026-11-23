@@ -1,0 +1,5 @@
+$kind: collection
+description: Koleksi Postman khusus untuk Kelompok 7 - Monitoring Service (Port 8107). Cukup drag & drop file ini ke aplikasi Postman.
+variables:
+  base_url: http://127.0.0.1:8107
+  token: ""

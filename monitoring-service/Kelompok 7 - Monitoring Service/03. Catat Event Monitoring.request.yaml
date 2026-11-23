@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{base_url}}/api/monitoring/events"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"service\": \"course\",\r
+
+    \  \"status\": \"healthy\",\r
+
+    \  \"message\": \"Pengecekan rutin port 8103 berhasil\"\r
+
+    }"
+order: 3000

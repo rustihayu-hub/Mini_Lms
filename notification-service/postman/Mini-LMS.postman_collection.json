@@ -1,0 +1,643 @@
+{
+  "info": {
+    "name": "Mini-LMS Kelompok 2 - Notification",
+    "description": "Koleksi uji Notification Service (port 8106). Pilih environment 'Lokal', isi variabel token, lalu jalankan dengan Collection Runner. Urutan request penting: 'Buat notifikasi berhasil' mengisi notif_id yang dipakai request PATCH.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Health 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Format sukses sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(true);",
+              "  pm.expect(json).to.have.property(\"data\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"status healthy\", function () {",
+              "  pm.expect(pm.response.json().data.status).to.eql(\"healthy\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "Buat notifikasi berhasil (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Buat notifikasi 201\", function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test(\"Format sukses sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(true);",
+              "  pm.expect(json).to.have.property(\"data\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "const d = pm.response.json().data;",
+              "pm.test(\"Data notifikasi lengkap\", function () {",
+              "  pm.expect(d).to.have.property(\"id\");",
+              "  pm.expect(d.user_id).to.eql(\"user-001\");",
+              "  pm.expect(d.is_read).to.eql(false);",
+              "});",
+              "pm.environment.set(\"notif_id\", d.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/notifications",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"user-001\",\n  \"message\": \"Submission berhasil diterima\",\n  \"type\": \"submission\",\n  \"submission_id\": \"sub-001\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Buat notifikasi field kosong (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Field kosong ditolak 400\", function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Format error sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.error).to.have.property(\"code\");",
+              "  pm.expect(json.error).to.have.property(\"message\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"error.code = validation_error\", function () {",
+              "  pm.expect(pm.response.json().error.code).to.eql(\"validation_error\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/notifications",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Buat notifikasi JSON rusak (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"JSON rusak ditolak 400\", function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Format error sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.error).to.have.property(\"code\");",
+              "  pm.expect(json.error).to.have.property(\"message\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"error.code = invalid_json\", function () {",
+              "  pm.expect(pm.response.json().error.code).to.eql(\"invalid_json\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/notifications",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{rusak",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Buat notifikasi bukan JSON (415)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Content-Type salah 415\", function () {",
+              "  pm.response.to.have.status(415);",
+              "});",
+              "pm.test(\"Format error sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.error).to.have.property(\"code\");",
+              "  pm.expect(json.error).to.have.property(\"message\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"error.code = unsupported_media_type\", function () {",
+              "  pm.expect(pm.response.json().error.code).to.eql(\"unsupported_media_type\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/notifications",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "halo",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Buat notifikasi tanpa token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Tanpa token ditolak 401\", function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Format error sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.error).to.have.property(\"code\");",
+              "  pm.expect(json.error).to.have.property(\"message\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"error.code = unauthorized\", function () {",
+              "  pm.expect(pm.response.json().error.code).to.eql(\"unauthorized\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/notifications",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"user_id\": \"user-001\", \"message\": \"Tanpa token\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "Ambil notifikasi user (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Ambil notifikasi 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Format sukses sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(true);",
+              "  pm.expect(json).to.have.property(\"data\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"data berupa array\", function () {",
+              "  pm.expect(pm.response.json().data).to.be.an(\"array\");",
+              "});",
+              "pm.test(\"semua milik user-001\", function () {",
+              "  pm.response.json().data.forEach(n => pm.expect(n.user_id).to.eql(\"user-001\"));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/notifications?user_id=user-001",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "user-001"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Ambil notifikasi tanpa user_id (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Tanpa user_id 400\", function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "pm.test(\"Format error sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.error).to.have.property(\"code\");",
+              "  pm.expect(json.error).to.have.property(\"message\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"error.code = validation_error\", function () {",
+              "  pm.expect(pm.response.json().error.code).to.eql(\"validation_error\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/notifications",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Ambil notifikasi tanpa token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Tanpa token ditolak 401\", function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Format error sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.error).to.have.property(\"code\");",
+              "  pm.expect(json.error).to.have.property(\"message\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"error.code = unauthorized\", function () {",
+              "  pm.expect(pm.response.json().error.code).to.eql(\"unauthorized\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/notifications?user_id=user-001",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "user-001"
+            }
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "Tandai dibaca (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Tandai dibaca 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Format sukses sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(true);",
+              "  pm.expect(json).to.have.property(\"data\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"is_read menjadi true\", function () {",
+              "  pm.expect(pm.response.json().data.is_read).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/notifications/{{notif_id}}/read",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications",
+            "{{notif_id}}",
+            "read"
+          ]
+        },
+        "description": "Jalankan setelah 'Buat notifikasi berhasil (201)' agar variabel notif_id terisi."
+      }
+    },
+    {
+      "name": "Buktikan is_read berubah (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Ambil notifikasi 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"notifikasi tadi kini is_read = true\", function () {",
+              "  const n = pm.response.json().data.find(x => x.id === pm.environment.get(\"notif_id\"));",
+              "  pm.expect(n).to.not.be.undefined;",
+              "  pm.expect(n.is_read).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/notifications?user_id=user-001",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "user-001"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Tandai dibaca id tidak ada (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Id tidak ada 404\", function () {",
+              "  pm.response.to.have.status(404);",
+              "});",
+              "pm.test(\"Format error sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.error).to.have.property(\"code\");",
+              "  pm.expect(json.error).to.have.property(\"message\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"error.code = notification_not_found\", function () {",
+              "  pm.expect(pm.response.json().error.code).to.eql(\"notification_not_found\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/notifications/notif-999/read",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications",
+            "notif-999",
+            "read"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Tandai dibaca tanpa token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Tanpa token ditolak 401\", function () {",
+              "  pm.response.to.have.status(401);",
+              "});",
+              "pm.test(\"Format error sesuai kontrak\", function () {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.success).to.eql(false);",
+              "  pm.expect(json.error).to.have.property(\"code\");",
+              "  pm.expect(json.error).to.have.property(\"message\");",
+              "  pm.expect(json.meta).to.have.property(\"request_id\");",
+              "});",
+              "pm.test(\"error.code = unauthorized\", function () {",
+              "  pm.expect(pm.response.json().error.code).to.eql(\"unauthorized\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/notifications/notif-001/read",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "notifications",
+            "notif-001",
+            "read"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    }
+  ]
+}

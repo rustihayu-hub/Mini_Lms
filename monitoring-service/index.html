@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitoring Service - Kelompok 7 (Kerangka UI HTML)</title>
+</head>
+<body>
+    <h1>Monitoring Service (Kelompok 7)</h1>
+    <p>Layanan pemantau ketersediaan & kesehatan 7 service Mini-LMS (Port 8107).</p>
+    <hr>
+
+    <h2>1. Health Check Monitoring Sendiri</h2>
+    <button onclick="checkHealth()">Cek Health (/health)</button>
+    <pre id="health-out">[Belum dicek]</pre>
+    <hr>
+
+    <h2>2. Token Akses</h2>
+    <label>Bearer Token: </label><br>
+    <input type="text" id="token-input" placeholder="Masukkan token login..." size="60">
+    <br><br>
+    <hr>
+
+    <h2>3. Status Kesehatan Seluruh Service (Health All)</h2>
+    <button onclick="loadAllHealth()">Periksa Seluruh Layanan (/api/health/all)</button>
+    <br><br>
+    <p><strong>Overall Status: </strong><span id="overall-status">-</span></p>
+    <table border="1" cellpadding="6" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Nama Service</th>
+                <th>Status</th>
+                <th>URL Health Probe</th>
+                <th>HTTP Status</th>
+                <th>Durasi (ms)</th>
+                <th>Keterangan</th>
+            </tr>
+        </thead>
+        <tbody id="mon-table-body">
+            <tr><td colspan="6">Klik tombol di atas untuk memantau status.</td></tr>
+        </tbody>
+    </table>
+    <pre id="raw-mon-out"></pre>
+
+    <script>
+        async function checkHealth() {
+            const res = await fetch('/health');
+            document.getElementById('health-out').innerText = JSON.stringify(await res.json(), null, 2);
+        }
+
+        async function loadAllHealth() {
+            const tb = document.getElementById('mon-table-body');
+            const overall = document.getElementById('overall-status');
+            const rawOut = document.getElementById('raw-mon-out');
+            tb.innerHTML = '<tr><td colspan="6">Memeriksa seluruh service...</td></tr>';
+            overall.innerText = 'Checking...';
+            rawOut.innerText = '';
+
+            const token = document.getElementById('token-input').value.trim();
+            const headers = {'Accept': 'application/json'};
+            if (token) headers['Authorization'] = token.startsWith('Bearer ') ? token : 'Bearer ' + token;
+
+            try {
+                const res = await fetch('/api/health/all', { headers: headers });
+                const json = await res.json();
+                rawOut.innerText = 'HTTP Status: ' + res.status + '\n' + JSON.stringify(json, null, 2);
+                if (!res.ok) {
+                    tb.innerHTML = '<tr><td colspan="6">Error (' + res.status + '): ' + (json.message || 'Gagal memantau') + '</td></tr>';
+                    overall.innerText = 'ERROR';
+                    return;
+                }
+
+                overall.innerText = json.overall_status || '-';
+                const items = json.services || [];
+                tb.innerHTML = items.map(s => `
+                    <tr>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.status === 'UP' ? 'UP (Online)' : 'DOWN (Gangguan)'}</td>
+                        <td>${s.health_url || '-'}</td>
+                        <td>${s.http_code || 0}</td>
+                        <td>${s.duration_ms || 0} ms</td>
+                        <td>${s.message || s.reason || '-'}</td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                tb.innerHTML = '<tr><td colspan="6">Koneksi gagal: ' + err + '</td></tr>';
+                overall.innerText = 'FAIL';
+            }
+        }
+    </script>
+</body>
+</html>

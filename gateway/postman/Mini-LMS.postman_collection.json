@@ -1,0 +1,123 @@
+{
+  "info": {
+    "name": "Mini LMS - Gateway Kelompok 5",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8101" },
+    { "key": "token", "value": "abc123" }
+  ],
+  "item": [
+    {
+      "name": "1. GET /health",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+          "pm.test('Gateway healthy', function () { pm.expect(pm.response.json().data.status).to.eql('healthy'); });"
+        ]}
+      }],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+      }
+    },
+    {
+      "name": "2. GET /api/services",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+          "pm.test('Memuat daftar service', function () { pm.expect(pm.response.json().data).to.have.property('course'); });"
+        ]}
+      }],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/services", "host": ["{{base_url}}"], "path": ["api", "services"] }
+      }
+    },
+    {
+      "name": "3. Nama service salah (404)",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 404', function () { pm.response.to.have.status(404); });",
+          "pm.test('Kode error service_not_found', function () { pm.expect(pm.response.json().error.code).to.eql('service_not_found'); });"
+        ]}
+      }],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{base_url}}/api/abc", "host": ["{{base_url}}"], "path": ["api", "abc"] }
+      }
+    },
+    {
+      "name": "4. Tanpa token (401)",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 401', function () { pm.response.to.have.status(401); });",
+          "pm.test('Kode error unauthorized', function () { pm.expect(pm.response.json().error.code).to.eql('unauthorized'); });"
+        ]}
+      }],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/courses", "host": ["{{base_url}}"], "path": ["api", "courses"] }
+      }
+    },
+    {
+      "name": "5. Dengan token, Course aktif (200)",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+          "pm.test('Request ID diteruskan', function () { var b = pm.response.json(); pm.expect(((b.meta || {}).request_id) || ((b.data || {}).request_id)).to.eql('tes-001'); });"
+        ]}
+      }],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "X-Request-ID", "value": "tes-001" }
+        ],
+        "url": { "raw": "{{base_url}}/api/courses", "host": ["{{base_url}}"], "path": ["api", "courses"] }
+      }
+    },
+    {
+      "name": "6. Service mati (503 atau 504)",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 503 atau 504', function () { pm.expect([503, 504]).to.include(pm.response.code); });"
+        ]}
+      }],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{base_url}}/api/assignments", "host": ["{{base_url}}"], "path": ["api", "assignments"] }
+      }
+    },
+    {
+      "name": "7. Body JSON rusak (400)",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 400', function () { pm.response.to.have.status(400); });",
+          "pm.test('Kode error invalid_json', function () { pm.expect(pm.response.json().error.code).to.eql('invalid_json'); });"
+        ]}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{rusak" },
+        "url": { "raw": "{{base_url}}/api/courses", "host": ["{{base_url}}"], "path": ["api", "courses"] }
+      }
+    }
+  ]
+}

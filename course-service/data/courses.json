@@ -1,0 +1,12 @@
+[
+    {
+        "id": 1,
+        "name": "Pemrograman Web",
+        "description": "Mata kuliah dasar pemrograman website"
+    },
+    {
+        "id": 2,
+        "name": "Kewirausahaan",
+        "description": "Mata kuliah dasar Kewirausahaan"
+    }
+]

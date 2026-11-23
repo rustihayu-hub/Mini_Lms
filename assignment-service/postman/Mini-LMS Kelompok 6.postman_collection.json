@@ -1,0 +1,189 @@
+{
+  "info": {
+    "_postman_id": "78704052-7b33-4a42-a819-6fa6909eda5a",
+    "name": "Mini-LMS Kelompok 6",
+    "description": "### Welcome to Postman! This is your first collection. \n\nCollections are your starting point for building and testing APIs. You can use this one to:\n\n• Group related requests\n• Test your API in real-world scenarios\n• Document and share your requests\n\nUpdate the name and overview whenever you’re ready to make it yours.\n\n[Learn more about Postman Collections.](https://learning.postman.com/docs/collections/collections-overview/)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "60216759",
+    "_collection_link": "https://go.postman.co/collection/60216759-78704052-7b33-4a42-a819-6fa6909eda5a?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Health Check (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
+      },
+      "response": []
+    },
+    {
+      "name": "Assignments Tanpa Autentikasi (200)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/assignments?course_id=course-001",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "assignments"
+          ],
+          "query": [
+            {
+              "key": "course_id",
+              "value": "course-001"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Assignment Input Salah (400)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"course_id\": \"course-001\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/assignments",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "assignments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Assignment Course Not Found (404)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"course_id\": \"course-999\", \"title\": \"Tugas Salah\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/assignments",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "assignments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Assignment Sukses (201)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"course_id\": \"course-001\",\r\n  \"title\": \"Tugas 2: Uji Integrasi\",\r\n  \"description\": \"Pengujian lintas service melalui API Gateway\"\r\n}   ",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/assignments",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "assignments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Assignments Sukses (200)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/assignments?course_id=course-001",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "assignments"
+          ],
+          "query": [
+            {
+              "key": "course_id",
+              "value": "course-001"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Assignment Sukses (200)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/assignments/asg-002",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "assignments",
+            "asg-002"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
