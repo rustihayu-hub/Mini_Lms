@@ -19,7 +19,7 @@ def reset_db(tmp_path, monkeypatch):
     monkeypatch.setenv("UPLOAD_DIR", str(test_root / "uploads"))
     monkeypatch.setenv("MAX_UPLOAD_BYTES", "8")
     monkeypatch.setenv("AUTH_SERVICE_URL", "http://auth.test")
-    monkeypatch.setenv("AUTH_VALIDATE_PATH", "/api/v1/auth/me")
+    monkeypatch.setenv("AUTH_VALIDATE_PATH", "/api/auth/me")
     monkeypatch.setenv("ASSIGNMENT_SERVICE_URL", "http://assignment.test")
     monkeypatch.setenv("ASSIGNMENT_VALIDATE_PATH", "/api/assignments/{assignment_id}")
     monkeypatch.setenv("NOTIFICATION_SERVICE_URL", "http://notification.test")
@@ -44,7 +44,7 @@ def api(monkeypatch):
     # Keep tests independent of a developer's local .env (which may contain
     # machine-specific or stale integration endpoints).
     monkeypatch.setenv("AUTH_SERVICE_URL", "http://auth.test")
-    monkeypatch.setenv("AUTH_VALIDATE_PATH", "/api/v1/auth/me")
+    monkeypatch.setenv("AUTH_VALIDATE_PATH", "/api/auth/me")
     monkeypatch.setenv("ASSIGNMENT_SERVICE_URL", "http://assignment.test")
     monkeypatch.setenv("ASSIGNMENT_VALIDATE_PATH", "/api/assignments/{assignment_id}")
     monkeypatch.setenv("NOTIFICATION_SERVICE_URL", "http://notification.test")
@@ -55,7 +55,7 @@ def api(monkeypatch):
         if "auth.test" in request.url.host:
             if request.headers.get("authorization") == "Bearer good":
                 assert request.method == "GET"
-                assert request.url.path == "/api/v1/auth/me"
+                assert request.url.path == "/api/auth/me"
                 return httpx.Response(200, json={"id": "user-1", "role": "mahasiswa"})
             return httpx.Response(401, json={})
         if "assignment.test" in request.url.host:
@@ -97,6 +97,13 @@ def test_openapi_documents_submission_contract(api):
 def test_missing_token_is_401(api):
     response = api.get("/api/submissions?assignment_id=a1")
     assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_malformed_authorization_is_401_without_auth_call(api):
+    response = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Basic abc"})
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
 
 
 def test_auth_invalid_token_is_401(api, monkeypatch):
@@ -107,6 +114,16 @@ def test_auth_invalid_token_is_401(api, monkeypatch):
     response = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Bearer expired"})
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "unauthorized"
+
+
+def test_auth_service_unavailable_is_503(api, monkeypatch):
+    def fail(request):
+        raise httpx.ConnectError("offline", request=request)
+
+    monkeypatch.setattr("app.services.auth_service.httpx.AsyncClient", client_with_transport(fail))
+    response = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Bearer good"})
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "auth_unavailable"
 
 
 def test_auth_profile_data_envelope(api, monkeypatch):
@@ -221,15 +238,30 @@ def test_assignment_upstream_error_is_503(api, monkeypatch):
 
 
 def test_notification_connection_failure_does_not_undo_submission(api, monkeypatch):
-    def fail(request):
-        raise httpx.ConnectError("offline", request=request)
+    def handler(request):
+        if request.url.host == "auth.test":
+            return httpx.Response(200, json={"id": "user-1", "role": "mahasiswa"})
 
-    monkeypatch.setattr("app.services.notification_service.httpx.AsyncClient", client_with_transport(fail))
-    monkeypatch.setattr("app.services.auth_service.httpx.AsyncClient", client_with_transport(
-        lambda request: httpx.Response(200, json={"id": "user-1"})))
-    response = api.post("/api/submissions", data={"assignment_id": "a1"},
-                        files={"file": ("answer.txt", b"abc", "text/plain")},
-                        headers={"Authorization": "Bearer good"})
+        if request.url.host == "assignment.test":
+            return httpx.Response(200, json={"success": True, "data": {"id": "a1"}})
+
+        if request.url.host == "notification.test":
+            raise httpx.ConnectError("offline", request=request)
+
+        return httpx.Response(500)
+
+    monkeypatch.setattr(
+        "app.services.auth_service.httpx.AsyncClient",
+        client_with_transport(handler)
+    )
+
+    response = api.post(
+        "/api/submissions",
+        data={"assignment_id": "a1"},
+        files={"file": ("answer.txt", b"abc", "text/plain")},
+        headers={"Authorization": "Bearer good"}
+    )
+
     assert response.status_code == 201
     assert response.json()["data"]["submission"]["status"] == "submitted"
 

@@ -34,7 +34,7 @@ php -S 127.0.0.1:8101 -t gateway
 
 Konfigurasi alamat service ada di `gateway/services.json`. Jika host atau port Submission Service berubah, perbarui nilai `submission` di file tersebut.
 
-Gateway meneruskan request tanpa mewajibkan autentikasi. Gateway juga meneruskan upload multipart `assignment_id` dan `file`.
+Gateway mewajibkan header `Authorization: Bearer <token>` untuk endpoint domain dan meneruskannya ke Submission Service. Submission Service memvalidasi token ke Authentication Service; Gateway hanya memeriksa format header. Gateway juga meneruskan upload multipart `assignment_id` dan `file`.
 
 Dokumentasi Gateway dan instruksi tes ada di [gateway/README.md](gateway/README.md) dan [gateway/API_CONTRACT.md](gateway/API_CONTRACT.md).
 
@@ -53,6 +53,8 @@ python -m pytest -q
 Tes memakai fixture `tmp_path` standar pytest untuk database dan upload terisolasi. Jika Windows membatasi akses ke TEMP, periksa nilai `$env:TEMP` dan `$env:TMP`, lalu jalankan `python -m pytest -q --basetemp <direktori-yang-dapat-diakses>` dari PowerShell. Jangan arahkan ke folder yang tidak bisa dienumerasi atau dihapus oleh akun Windows Anda.
 
 Koleksi Postman Submission ada di `postman/Mini-LMS.postman_collection.json` jika tersedia pada salinan lokal proyek. Atur variabel `base_url`, `token`, dan `assignment_id`. Automated tests menggunakan mock in-process dan tidak membuktikan integrasi kelompok lain berhasil.
+
+Submission Service tidak menyediakan `AUTH_MODE=format_only` atau token demo. `SUBMISSION_TESTING=1` hanya mencegah file `.env` lokal mengubah konfigurasi fixture pytest; autentikasi tetap diuji dengan mock Authentication Service. Untuk request ke server yang berjalan, gunakan JWT yang benar-benar diterbitkan Authentication Service.
 
 ## Struktur utama
 
