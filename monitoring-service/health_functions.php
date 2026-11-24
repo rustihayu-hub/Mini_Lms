@@ -93,54 +93,19 @@ function httpGet(string $url, array $headers = []): array
     ];
 }
 
-function bearerHeader(): string
-{
-    $header = trim((string) ($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? ''));
-    if (!preg_match('/^Bearer\s+\S+$/i', $header)) {
-        header('WWW-Authenticate: Bearer');
-        sendJson(['success' => false, 'error' => ['code' => 'missing_token', 'message' => 'Kirim token melalui header Authorization: Bearer <token>.']], 401);
-    }
-    return $header;
-}
-
-function requireValidAuthentication(): array
-{
-    $authorization = bearerHeader();
-    $authBaseUrl = envValue('AUTH_SERVICE_URL');
-    if ($authBaseUrl === null || !filter_var($authBaseUrl, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $authBaseUrl)) {
-        sendJson(['success' => false, 'error' => ['code' => 'auth_service_not_configured', 'message' => 'AUTH_SERVICE_URL belum dikonfigurasi dengan URL HTTP/HTTPS yang valid.']], 503);
-    }
-
-    $response = httpGet(rtrim($authBaseUrl, '/') . '/api/auth/validate', ['Authorization: ' . $authorization]);
-    if ($response['timed_out'] || $response['body'] === false || $response['http_code'] === 0 || $response['http_code'] >= 500) {
-        sendJson(['success' => false, 'error' => ['code' => 'auth_service_unavailable', 'message' => 'Validasi token tidak dapat dilakukan karena Auth Service tidak tersedia.']], 503);
-    }
-    if ($response['http_code'] < 200 || $response['http_code'] >= 300) {
-        header('WWW-Authenticate: Bearer');
-        sendJson(['success' => false, 'error' => ['code' => 'invalid_token', 'message' => 'Token ditolak oleh Auth Service.']], 401);
-    }
-
-    $payload = json_decode((string) $response['body'], true);
-    if (!is_array($payload) || ($payload['data']['valid'] ?? false) !== true) {
-        sendJson(['success' => false, 'error' => ['code' => 'invalid_auth_response', 'message' => 'Respons validasi dari Auth Service tidak sah.']], 502);
-    }
-    return $payload['data'];
-}
-
 function configuredServices(): array
 {
     return [
-        ['name' => 'auth', 'url_env' => 'AUTH_SERVICE_URL', 'path_env' => 'AUTH_HEALTH_PATH', 'default_path' => '/health'],
-        ['name' => 'course', 'url_env' => 'COURSE_SERVICE_URL', 'path_env' => 'COURSE_HEALTH_PATH', 'default_path' => '/api/health'],
-        ['name' => 'assignment', 'url_env' => 'ASSIGNMENT_SERVICE_URL', 'path_env' => 'ASSIGNMENT_HEALTH_PATH', 'default_path' => '/health'],
-        ['name' => 'submission', 'url_env' => 'SUBMISSION_SERVICE_URL', 'path_env' => 'SUBMISSION_HEALTH_PATH', 'default_path' => '/health'],
-        ['name' => 'notification', 'url_env' => 'NOTIFICATION_SERVICE_URL', 'path_env' => 'NOTIFICATION_HEALTH_PATH', 'default_path' => '/api.php/health'],
+        ['name' => 'course', 'url_env' => 'COURSE_SERVICE_URL', 'default_url' => 'http://127.0.0.1:8103', 'path_env' => 'COURSE_HEALTH_PATH', 'default_path' => '/health'],
+        ['name' => 'assignment', 'url_env' => 'ASSIGNMENT_SERVICE_URL', 'default_url' => 'http://127.0.0.1:8104', 'path_env' => 'ASSIGNMENT_HEALTH_PATH', 'default_path' => '/health'],
+        ['name' => 'submission', 'url_env' => 'SUBMISSION_SERVICE_URL', 'default_url' => 'http://127.0.0.1:8105', 'path_env' => 'SUBMISSION_HEALTH_PATH', 'default_path' => '/health'],
+        ['name' => 'notification', 'url_env' => 'NOTIFICATION_SERVICE_URL', 'default_url' => 'http://127.0.0.1:8106', 'path_env' => 'NOTIFICATION_HEALTH_PATH', 'default_path' => '/health'],
     ];
 }
 
 function checkService(array $service): array
 {
-    $baseUrl = envValue($service['url_env']);
+    $baseUrl = envValue($service['url_env'], $service['default_url']);
     $path = envValue($service['path_env'], $service['default_path']) ?? $service['default_path'];
     if ($baseUrl === null || !filter_var($baseUrl, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $baseUrl)) {
         return ['name' => $service['name'], 'status' => 'DOWN', 'reason' => 'configuration_error', 'message' => $service['url_env'] . ' belum diisi dengan URL HTTP/HTTPS yang valid.'];

@@ -27,9 +27,7 @@ Dokumen ini berisi hasil pengujian fungsional dan penanganan error untuk **Monit
 | No | Nama Request | Metode & Endpoint | Skenario Pengujian | Status HTTP | Status |
 |---:|---|---|---|---:|---|
 | 1 | `01. Cek Health Monitoring Sendiri` | `GET /health` | Cek status layanan mandiri tanpa token | `200 OK` | Lulus |
-| 2 | `02. Periksa Status Seluruh 7 Service` | `GET /api/monitoring/services` | Mengirim header `Authorization: Bearer <token>` valid | `200 OK` | Lulus |
-| 3 | `02. Periksa Status Seluruh 7 Service` | `GET /api/monitoring/services` | Mengirim permintaan tanpa token / token tidak valid | `401 Unauthorized` | Lulus |
-| 4 | `02. Periksa Status Seluruh 7 Service` | `GET /api/monitoring/services` | Simulasi Auth Service tidak aktif / tidak dapat dihubungi | `503 Service Unavailable` | Lulus |
+| 2 | `02. Periksa Status Seluruh Service` | `GET /api/monitoring/services` | Tanpa header Authorization | `200 OK` | Lulus |
 | 5 | `03. Catat Event Monitoring` | `POST /api/monitoring/events` | Mengirim payload JSON valid (`service`, `status`, `message`) | `201 Created` | Lulus |
 | 6 | `03. Catat Event Monitoring` | `POST /api/monitoring/events` | Mengirim payload JSON kosong `{}` / field tidak lengkap | `400 Bad Request` | Lulus |
 | 7 | `03. Catat Event Monitoring` | `GET /api/monitoring/events` | Mengambil seluruh riwayat event yang tersimpan | `200 OK` | Lulus |
@@ -45,10 +43,8 @@ Dokumen ini berisi hasil pengujian fungsional dan penanganan error untuk **Monit
 - **Bukti Tangkapan Layar:** `docs/bukti/01_health_200.png`
 
 ### 2. Pemeriksaan Status Seluruh Layanan (`GET /api/monitoring/services`)
-- **Skenario Token Valid (`200 OK`):** Token berhasil divalidasi oleh Auth Service, lalu sistem memeriksa status tiap layanan terdaftar (`auth`, `course`, `assignment`, `submission`, `notification`). Jika ada layanan yang mati, `overall_status` otomatis tercatat sebagai `DEGRADED`.
-- **Skenario Tanpa Token (`401 Unauthorized`):** Sistem menolak permintaan dengan kode error `missing_token`.
-- **Skenario Auth Service Mati (`503 Service Unavailable`):** Sistem menangani kegagalan koneksi dengan kode error `auth_service_unavailable`.
-- **Bukti Tangkapan Layar:** `docs/bukti/02_services_200.png`, `docs/bukti/02_services_401.png`, `docs/bukti/02_services_503.png`
+- **Skenario Tanpa Token (`200 OK`):** Monitoring memeriksa status layanan tanpa memanggil Authentication. Jika ada layanan yang mati, `overall_status` ditandai `DEGRADED`.
+- **Bukti Tangkapan Layar:** `docs/bukti/02_services_200.png`
 
 ### 3. Pencatatan & Verifikasi Event Monitoring (`POST` & `GET /api/monitoring/events`)
 - **Skenario Payload Valid (`201 Created`):** Data event berhasil dibuat dengan ID berurutan (`evt-001`, `evt-002`, dst.) dan tersimpan secara permanen di dalam file `data/events.json`.

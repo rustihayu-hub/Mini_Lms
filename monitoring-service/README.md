@@ -17,7 +17,7 @@ Monitoring Service memeriksa ketersediaan layanan Mini-LMS secara langsung tanpa
 | Metode | Endpoint | Akses | Kegunaan |
 |---|---|---|---|
 | `GET` | `/health` | Publik | Memeriksa status hidup proses Monitoring Service secara mandiri. |
-| `GET` | `/api/monitoring/services` *(alias: `/api/health/all`)* | Terlindungi (`Bearer Token`) | Memvalidasi token ke Auth Service lalu memeriksa status kesehatan seluruh layanan terdaftar. |
+| `GET` | `/api/monitoring/services` *(alias: `/api/health/all`)* | Publik | Memeriksa status kesehatan seluruh layanan terdaftar. |
 | `POST` | `/api/monitoring/events` | Publik / Internal | Mencatat log peristiwa (*event*) hasil pemeriksaan atau status layanan ke `data/events.json`. |
 | `GET` | `/api/monitoring/events` | Publik / Internal | Mengambil seluruh riwayat log peristiwa yang tersimpan di `data/events.json`. |
 
@@ -33,10 +33,10 @@ Kelompok 7 - Monitoring Service/
 │   └── events.json          # Penyimpanan permanen log peristiwa (terbuat otomatis saat POST)
 ├── docs/
 │   ├── TESTING.md           # Laporan & rangkuman hasil pengujian Postman
-│   └── bukti/               # Screenshot bukti pengujian endpoint (200, 201, 400, 401, 503)
+│   └── bukti/               # Screenshot bukti pengujian endpoint
 ├── postman/                 # File export koleksi Postman Kelompok 7
 ├── API_DOCUMENTATION.md     # Dokumentasi lengkap spesifikasi kontrak & contoh respons API
-├── health_functions.php     # Fungsi helper validasi token, pengecekan HTTP, dan format respons
+├── health_functions.php     # Fungsi pengecekan HTTP dan format respons
 ├── index.html               # Halaman antarmuka status Monitoring Service
 ├── README.md                # Dokumentasi utama proyek
 ├── router.php               # Pengatur rute utama (front controller)
@@ -47,7 +47,6 @@ Kelompok 7 - Monitoring Service/
 Gunakan PHP 7.4 atau yang lebih baru. Contoh berikut membuka layanan pada seluruh antarmuka jaringan di port `8107`:
 
 ```bash
-AUTH_SERVICE_URL=http://HOST_AUTH:8102 \
 COURSE_SERVICE_URL=http://HOST_COURSE:8103 \
 ASSIGNMENT_SERVICE_URL=http://HOST_ASSIGNMENT:8104 \
 SUBMISSION_SERVICE_URL=http://HOST_SUBMISSION:8105 \
@@ -61,14 +60,13 @@ Ganti setiap nama host dengan alamat LAN atau DNS yang sesuai. Kode tidak menyim
 
 | Variabel | Wajib | Kegunaan |
 |---|---:|---|
-| `AUTH_SERVICE_URL` | Ya | URL dasar Auth Service, termasuk untuk validasi token. |
 | `COURSE_SERVICE_URL` | Ya | URL dasar Course Service. |
 | `ASSIGNMENT_SERVICE_URL` | Ya | URL dasar Assignment Service. |
 | `SUBMISSION_SERVICE_URL` | Ya | URL dasar Submission Service. |
 | `NOTIFICATION_SERVICE_URL` | Ya | URL dasar Notification Service. |
 | `MONITORING_TIMEOUT_SECONDS` | Tidak | Batas waktu tiap permintaan, bawaan 3 detik; rentang 0,1–30 detik. |
 
-Jalur health bawaan berturut-turut adalah `/health`, `/api/health`, `/health`, `/health`, dan `/health`. Bila implementasi layanan berbeda, atur `AUTH_HEALTH_PATH`, `COURSE_HEALTH_PATH`, `ASSIGNMENT_HEALTH_PATH`, `SUBMISSION_HEALTH_PATH`, atau `NOTIFICATION_HEALTH_PATH`.
+Jalur health bawaan adalah `/api/health` untuk Course dan `/health` untuk Assignment, Submission, dan Notification. Bila implementasi layanan berbeda, atur `COURSE_HEALTH_PATH`, `ASSIGNMENT_HEALTH_PATH`, `SUBMISSION_HEALTH_PATH`, atau `NOTIFICATION_HEALTH_PATH`.
 
 ## Integrasi Gateway
 
@@ -77,16 +75,16 @@ Gateway menerima rute privat `/api/v1/monitoring/...`, menghapus prefiks tersebu
 - `GET /api/v1/monitoring/health` → `GET http://HOST_MONITORING:8107/health`
 - `GET /api/v1/monitoring/all` → `GET http://HOST_MONITORING:8107/api/health/all`
 
-Header `Authorization` harus dipertahankan saat Gateway meneruskan endpoint terlindungi.
+Endpoint monitoring publik dan tidak memerlukan header autentikasi.
 
 ## Pengujian singkat
 
 ```bash
 curl -i http://HOST_MONITORING:8107/health
-curl -i -H 'Authorization: Bearer TOKEN' http://HOST_MONITORING:8107/api/health/all
+curl -i http://HOST_MONITORING:8107/api/health/all
 ```
 
-Endpoint agregat tetap merespons `200` setelah autentikasi berhasil meskipun satu layanan `DOWN`; hasil tersebut ditandai dengan `overall_status: DEGRADED`. Kegagalan autentikasi menghasilkan `401`, sedangkan Auth Service yang tidak dapat dihubungi menghasilkan `503`.
+Endpoint agregat merespons `200` meskipun satu layanan `DOWN`; hasil tersebut ditandai dengan `overall_status: DEGRADED`.
 
 ---
 

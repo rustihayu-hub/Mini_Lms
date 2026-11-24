@@ -4,12 +4,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, File, Form, Header, Request, UploadFile
+from fastapi import APIRouter, File, Form, Request, UploadFile
 
 from app.database.connection import connect
 from app.middleware.request_id import get_request_id
 from app.services.assignment_service import ensure_assignment_exists
-from app.services.auth_service import authenticate
 from app.services.errors import ServiceError
 from app.services.file_service import save_upload
 from app.services.notification_service import notify_submission
@@ -28,9 +27,7 @@ router = APIRouter()
 
 @router.get("", response_model=SubmissionListResponse,
             responses={400: {"model": ErrorBody}})
-async def list_submissions(request: Request, assignment_id: str,
-                           authorization: str | None = Header(default=None)):
-    await authenticate(authorization, get_request_id(request))
+async def list_submissions(request: Request, assignment_id: str):
     if not assignment_id.strip():
         raise ServiceError(400, "invalid_assignment_id", "assignment_id wajib diisi")
     with connect() as db:
@@ -42,16 +39,14 @@ async def list_submissions(request: Request, assignment_id: str,
              responses={400: {"model": ErrorBody},
                         413: {"model": ErrorBody}, 415: {"model": ErrorBody},
                         502: {"model": ErrorBody}, 503: {"model": ErrorBody}, 504: {"model": ErrorBody}})
-async def create_submission(request: Request, assignment_id: str = Form(...), file: UploadFile = File(...),
-                            authorization: str | None = Header(default=None)):
+async def create_submission(request: Request, assignment_id: str = Form(...), file: UploadFile = File(...)):
     request_id = get_request_id(request)
-    user = await authenticate(authorization, request_id)
     if not assignment_id.strip():
         raise ServiceError(400, "invalid_assignment_id", "assignment_id wajib diisi")
-    await ensure_assignment_exists(assignment_id, request_id, authorization or "")
+    await ensure_assignment_exists(assignment_id, request_id)
     saved = await save_upload(file)
     now = datetime.now(timezone.utc).isoformat()
-    submission = Submission(id=str(uuid4()), assignment_id=assignment_id, user_id=user["id"],
+    submission = Submission(id=str(uuid4()), assignment_id=assignment_id, user_id="anonymous",
                             file_id=str(uuid4()), **saved, status="submitted", created_at=now, updated_at=now)
     try:
         with connect() as db:
@@ -61,18 +56,15 @@ async def create_submission(request: Request, assignment_id: str = Form(...), fi
         Path(saved["file_path"]).unlink(missing_ok=True)
         logger.exception("Could not persist submission metadata request_id=%s", request_id)
         raise ServiceError(500, "storage_error", "Submission gagal disimpan") from exc
-    await notify_submission({"submission_id": submission.id, "user_id": user["id"],
-                             "message": "Submission berhasil diterima", "type": "submission"}, request_id,
-                            authorization or "")
+    await notify_submission({"submission_id": submission.id, "user_id": "anonymous",
+                             "message": "Submission berhasil diterima", "type": "submission"}, request_id)
     return success(request, {"submission": submission.public_dict()}, 201)
 
 
 @router.delete("/{submission_id}", response_model=SubmissionDeleteResponse,
                responses={404: {"model": ErrorBody},
                           500: {"model": ErrorBody}})
-async def delete_submission(submission_id: str, request: Request,
-                            authorization: str | None = Header(default=None)):
-    await authenticate(authorization, get_request_id(request))
+async def delete_submission(submission_id: str, request: Request):
     with connect() as db:
         row = db.execute("SELECT * FROM submission WHERE id=?", (submission_id,)).fetchone()
         if row is None:

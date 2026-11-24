@@ -4,7 +4,7 @@
 - Port: 8106
 - URL dasar: http://127.0.0.1:8106 (lewat Gateway: http://127.0.0.1:8101/api/notifications)
 - Format data: JSON (`Content-Type: application/json`)
-- Header: `Authorization: Bearer <token>` untuk endpoint terproteksi, `X-Request-ID: <id unik>` (opsional; jika kosong dibuat otomatis dan dikembalikan di `meta.request_id` dan header respons)
+- Header autentikasi tidak diperlukan. `X-Request-ID: <id unik>` opsional; jika kosong dibuat otomatis.
 
 Format respons mengikuti kontrak bersama (modul bagian 8).
 
@@ -30,7 +30,7 @@ Objek notifikasi:
 
 ## Endpoint 1: Buat notifikasi
 - Metode dan URL: `POST /api/notifications`
-- Autentikasi: Bearer token wajib
+- Autentikasi: tidak diperlukan
 - Request body (`user_id` dan `message` wajib; `type` dan `submission_id` opsional):
   ```json
   { "user_id": "user-001", "message": "Submission berhasil diterima", "type": "submission", "submission_id": "sub-001" }
@@ -56,33 +56,27 @@ Objek notifikasi:
   |---|---|---|
   | 400 | `invalid_json` | Isi request bukan JSON yang valid |
   | 400 | `validation_error` | `user_id` atau `message` kosong/bukan teks, `type` bukan teks, atau `message` lebih dari 500 karakter |
-  | 401 | `unauthorized` | Token tidak ada atau ditolak Authentication |
   | 415 | `unsupported_media_type` | `Content-Type` bukan `application/json` |
-  | 502 / 503 / 504 | `auth_bad_response` / `auth_unavailable` / `auth_timeout` | Authentication Service rusak / mati / terlalu lambat |
 
 ## Endpoint 2: Lihat notifikasi milik satu user
 - Metode dan URL: `GET /api/notifications?user_id=user-001`
-- Autentikasi: Bearer token wajib
+- Autentikasi: tidak diperlukan
 - Request body: -
 - Respons sukses: `200 OK`, `data` berupa array objek notifikasi (array kosong jika belum ada)
 - Respons gagal:
   | Status | `error.code` | Penyebab |
   |---|---|---|
   | 400 | `validation_error` | Parameter `user_id` tidak diisi |
-  | 401 | `unauthorized` | Token tidak ada atau ditolak Authentication |
-  | 502 / 503 / 504 | `auth_*` | Sama seperti Endpoint 1 |
 
 ## Endpoint 3: Tandai sudah dibaca
 - Metode dan URL: `PATCH /api/notifications/{id}/read` (contoh `/api/notifications/notif-001/read`)
-- Autentikasi: Bearer token wajib
+- Autentikasi: tidak diperlukan
 - Request body: -
 - Respons sukses: `200 OK`, `data` berisi objek notifikasi dengan `is_read: true`
 - Respons gagal:
   | Status | `error.code` | Penyebab |
   |---|---|---|
-  | 401 | `unauthorized` | Token tidak ada atau ditolak Authentication |
   | 404 | `notification_not_found` | `id` tidak ada |
-  | 502 / 503 / 504 | `auth_*` | Sama seperti Endpoint 1 |
 
 ## Endpoint 4: Health check
 - Metode dan URL: `GET /health`
@@ -97,7 +91,7 @@ Objek notifikasi:
 - `500 storage_error` / `500 config_error`: berkas data atau konfigurasi service bermasalah
 
 ## Dependensi ke service lain
-- **Authentication (port 8102)**: setiap endpoint terproteksi memanggil `GET {auth}/api/auth/me` dengan header `Authorization` yang sama untuk memvalidasi token. Path dapat diubah lewat `AUTH_VALIDATE_PATH` agar sesuai kontrak kelompok Authentication. Alamat Authentication dibaca dari `services.json`. Batas waktu 3 detik; jika Authentication mati dijawab 503, jika lambat dijawab 504.
+- Notification tidak bergantung pada Authentication. Submission dapat mengirim notifikasi internal lewat `POST /api/notifications`.
 
 ## Dipanggil oleh
 - **Submission File (port 8105)**: `POST /api/notifications` setelah pengumpulan berhasil.

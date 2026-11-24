@@ -17,7 +17,7 @@ Assignment Service merupakan layanan dalam sistem Mini-LMS yang bertanggung jawa
 Assignment Service menggunakan PHP. Jalankan server PHP dari folder service:
 
 ```powershell
-php -S 127.0.0.1:8102
+php -S 127.0.0.1:8104 -t .
 ```
 
 ## API

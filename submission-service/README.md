@@ -16,7 +16,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8105 --reload
 
 Health check tersedia di `http://127.0.0.1:8105/health`; OpenAPI UI di `/docs`. Ubah `.env` untuk alamat dependency, batas upload, ekstensi, dan lokasi penyimpanan. Jangan commit `.env` atau data upload.
 
-Alamat `127.0.0.1` di `.env.example` adalah konfigurasi demo satu mesin. Untuk deployment, set `HOST`, `AUTH_SERVICE_URL`, `ASSIGNMENT_SERVICE_URL`, dan `NOTIFICATION_SERVICE_URL` ke alamat yang dapat dijangkau antar-container/host; jangan gunakan loopback kecuali dependency berjalan di lingkungan network namespace yang sama.
+Alamat `127.0.0.1` di `.env.example` adalah konfigurasi demo satu mesin. Untuk deployment, set `HOST`, `ASSIGNMENT_SERVICE_URL`, dan `NOTIFICATION_SERVICE_URL` ke alamat yang dapat dijangkau antar-container/host; jangan gunakan loopback kecuali dependency berjalan di lingkungan network namespace yang sama.
 
 ## API Gateway (PHP)
 
@@ -34,13 +34,13 @@ php -S 127.0.0.1:8101 -t gateway
 
 Konfigurasi alamat service ada di `gateway/services.json`. Jika host atau port Submission Service berubah, perbarui nilai `submission` di file tersebut.
 
-Gateway mewajibkan header `Authorization: Bearer <token>` untuk endpoint domain dan meneruskannya ke Submission Service. Submission Service memvalidasi token ke Authentication Service; Gateway hanya memeriksa format header. Gateway juga meneruskan upload multipart `assignment_id` dan `file`.
+Gateway dan Submission Service tidak mewajibkan autentikasi. Gateway meneruskan upload multipart `assignment_id` dan `file`.
 
 Dokumentasi Gateway dan instruksi tes ada di [gateway/README.md](gateway/README.md) dan [gateway/API_CONTRACT.md](gateway/API_CONTRACT.md).
 
 ## Integrasi dependency
 
-Adapter HTTP untuk Authentication, Assignment, dan Notification berada di `app/services/`. Endpoint domain memvalidasi token, mengambil user ID dari Authentication, lalu memeriksa Assignment sebelum menyimpan berkas.
+Adapter HTTP untuk Assignment dan Notification berada di `app/services/`. Submission memeriksa Assignment sebelum menyimpan berkas; `user_id` dicatat sebagai `anonymous`.
 
 Semua panggilan dependency memakai timeout dan meneruskan `X-Request-ID`. Notifikasi dicoba setelah commit metadata; kegagalan dicatat dan tidak membatalkan submission.
 
@@ -52,9 +52,9 @@ python -m pytest -q
 
 Tes memakai fixture `tmp_path` standar pytest untuk database dan upload terisolasi. Jika Windows membatasi akses ke TEMP, periksa nilai `$env:TEMP` dan `$env:TMP`, lalu jalankan `python -m pytest -q --basetemp <direktori-yang-dapat-diakses>` dari PowerShell. Jangan arahkan ke folder yang tidak bisa dienumerasi atau dihapus oleh akun Windows Anda.
 
-Koleksi Postman Submission ada di `postman/Mini-LMS.postman_collection.json` jika tersedia pada salinan lokal proyek. Atur variabel `base_url`, `token`, dan `assignment_id`. Automated tests menggunakan mock in-process dan tidak membuktikan integrasi kelompok lain berhasil.
+Koleksi Postman Submission ada di `postman/Mini-LMS.postman_collection.json` jika tersedia pada salinan lokal proyek. Atur variabel `base_url` dan `assignment_id`. Automated tests menggunakan mock in-process dan tidak membuktikan integrasi kelompok lain berhasil.
 
-Submission Service tidak menyediakan `AUTH_MODE=format_only` atau token demo. `SUBMISSION_TESTING=1` hanya mencegah file `.env` lokal mengubah konfigurasi fixture pytest; autentikasi tetap diuji dengan mock Authentication Service. Untuk request ke server yang berjalan, gunakan JWT yang benar-benar diterbitkan Authentication Service.
+`SUBMISSION_TESTING=1` mencegah file `.env` lokal mengubah konfigurasi fixture pytest.
 
 ## Struktur utama
 

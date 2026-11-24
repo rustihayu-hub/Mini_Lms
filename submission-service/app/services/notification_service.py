@@ -7,13 +7,11 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-async def notify_submission(data: dict, request_id: str, authorization: str | None = None):
+async def notify_submission(data: dict, request_id: str):
     settings = get_settings()
     try:
         async with httpx.AsyncClient(timeout=settings.dependency_timeout_seconds) as client:
             headers = {"X-Request-ID": request_id}
-            if authorization:
-                headers["Authorization"] = authorization
             response = await client.post(settings.notification_service_url.rstrip("/") + settings.notification_submission_path,
                                          json=data, headers=headers)
         if response.status_code >= 400:

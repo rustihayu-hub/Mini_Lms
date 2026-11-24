@@ -23,11 +23,6 @@ if (!is_array($services)) {
 
 return [
     'services'           => $services,
-    'auth_url'           => $services['auth'] ?? 'http://127.0.0.1:8102',
-    // Sesuaikan dengan API_CONTRACT kelompok Authentication.
-    'auth_validate_path' => getenv('AUTH_VALIDATE_PATH') ?: '/api/auth/me',
-    // 'remote' (default) atau 'format_only' (hanya untuk uji mandiri).
-    'auth_mode'          => getenv('AUTH_MODE') ?: 'remote',
     // Batas waktu pemanggilan antar-service, dalam detik.
     'timeout'            => (int) (getenv('HTTP_TIMEOUT') ?: 3),
     'data_file'          => __DIR__ . '/data/notifications.json',

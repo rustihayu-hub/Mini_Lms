@@ -3,7 +3,6 @@
 # Uji nomor 5 butuh service Course aktif di port 8103.
 
 $base  = "http://127.0.0.1:8101"
-$token = "Bearer abc123"
 $lulus = 0
 $gagal = 0
 
@@ -22,11 +21,10 @@ Write-Host "=== Pengujian API Gateway Kelompok 5 ===" -ForegroundColor Cyan
 
 Uji "1. GET /health"                          @(200)      @("$base/health")
 Uji "2. GET /api/services"                    @(200)      @("$base/api/services")
-Uji "3. Nama service salah -> 404"            @(404)      @("-H", "Authorization: $token", "$base/api/abc")
-Uji "4. Tanpa token -> 401"                   @(401)      @("$base/api/courses")
-Uji "5. Dengan token, Course aktif -> 200"    @(200)      @("-H", "Authorization: $token", "$base/api/courses")
-Uji "6. Service mati -> 503 atau 504"         @(503, 504) @("-H", "Authorization: $token", "$base/api/assignments")
-Uji "7. Body JSON rusak -> 400"               @(400)      @("-X", "POST", "-H", "Authorization: $token", "-H", "Content-Type: application/json", "-d", "{rusak", "$base/api/courses")
+Uji "3. Nama service salah -> 404"            @(404)      @("$base/api/abc")
+Uji "4. Request domain tanpa autentikasi"      @(200, 400, 503, 504) @("$base/api/courses")
+Uji "5. Service mati -> 503 atau 504"         @(503, 504) @("$base/api/assignments")
+Uji "6. Body JSON rusak -> 400"               @(400)      @("-X", "POST", "-H", "Content-Type: application/json", "-d", "{rusak", "$base/api/courses")
 
 Write-Host ""
 Write-Host "Lulus: $lulus   Gagal: $gagal" -ForegroundColor Cyan

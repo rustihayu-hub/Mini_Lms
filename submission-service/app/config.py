@@ -16,9 +16,6 @@ class Settings(BaseSettings):
     allowed_extensions: str = ".pdf,.doc,.docx,.txt,.zip,.png,.jpg,.jpeg"
     allowed_mime_types: str = ""
     dependency_timeout_seconds: float = 3.0
-    auth_service_url: str = "http://127.0.0.1:8102"
-    auth_validate_path: str = "/api/auth/me"
-    auth_token_header: str = "Authorization"
     assignment_service_url: str = "http://127.0.0.1:8104"
     assignment_validate_path: str = "/api/assignments/{assignment_id}"
     notification_service_url: str = "http://127.0.0.1:8106"

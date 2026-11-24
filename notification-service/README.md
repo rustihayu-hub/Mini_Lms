@@ -58,23 +58,16 @@ Alamat semua service dibaca dari [`services.json`](services.json); jangan menuli
 
 | Variabel | Default | Fungsi |
 |---|---|---|
-| `AUTH_MODE` | `remote` | `remote` = token divalidasi ke Authentication (**wajib untuk demo**). `format_only` = hanya cek header Bearer, **hanya untuk uji mandiri** saat Authentication belum jalan |
-| `AUTH_VALIDATE_PATH` | `/api/auth/me` | Path validasi token di Authentication (sesuaikan dengan kontrak mereka) |
 | `HTTP_TIMEOUT` | `3` | Batas waktu (detik) memanggil service lain |
 
-Contoh uji mandiri tanpa Authentication (PowerShell):
+Jalankan Notification Service (PowerShell; jalankan dari root proyek):
 ```
-$env:AUTH_MODE="format_only"; php -S 127.0.0.1:8106 index.php
+php -S 127.0.0.1:8106 .\notification-service\index.php
 ```
-Contoh mengganti path validasi:
-```
-$env:AUTH_VALIDATE_PATH="/api/auth/validate"; php -S 127.0.0.1:8106 index.php
-```
-Variabel hanya berlaku di jendela terminal itu. Tutup dan buka terminal baru untuk kembali ke pengaturan bawaan.
 
 ## Pengujian
 
-- **Postman**: impor `postman/Mini-LMS.postman_collection.json` dan `postman/Lokal.postman_environment.json`, pilih environment **Lokal**, lalu jalankan dengan Collection Runner. Pada environment, isi `token` dengan token asli dari Authentication (login lewat Gateway).
+- **Postman**: impor koleksi dan environment, pilih environment **Lokal**, lalu jalankan dengan Collection Runner. Token tidak diperlukan.
 - **Skrip**: `tests/test_api.ps1` (PowerShell) atau `tests/test_api.sh` (Bash). Contoh: `.\tests\test_api.ps1 -Token "<token>"`
 - Hasil dan bukti: [docs/TESTING.md](docs/TESTING.md) dan folder `docs/bukti/`.
 
@@ -118,6 +111,6 @@ Lihat [docs/DIAGRAM.md](docs/DIAGRAM.md) (hubungan service dan alur request).
 
 - Data disimpan di satu berkas JSON, cukup untuk demo tetapi tidak untuk beban besar. Tulis-baca dikunci (`flock`) agar aman dari tabrakan sederhana.
 - Server bawaan PHP (`php -S`) melayani satu request pada satu waktu, jadi tidak cocok untuk produksi.
-- Token divalidasi ke Authentication, tetapi service ini belum mencocokkan pemilik token dengan `user_id` yang diminta. Pengguna yang sudah login dapat membaca notifikasi user lain jika mengetahui `user_id`-nya.
+- Endpoint notifikasi publik; klien dapat membaca notifikasi untuk `user_id` mana pun yang diketahui.
 - Belum ada endpoint hapus dan belum ada paginasi pada daftar notifikasi.
-- Nama field pada respons Authentication (mis. lokasi `user_id`) belum dipakai; yang diperiksa hanya status 200 dan `success`.
+

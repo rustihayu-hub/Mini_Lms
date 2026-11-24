@@ -38,7 +38,6 @@ Setiap respons memuat `meta.request_id`.
 {
   "success": true,
   "data": {
-    "auth": "http://127.0.0.1:8102",
     "course": "http://127.0.0.1:8103",
     "assignment": "http://127.0.0.1:8104",
     "submission": "http://127.0.0.1:8105",
@@ -54,8 +53,7 @@ Setiap respons memuat `meta.request_id`.
 ## Endpoint 3: Meneruskan request ke service
 
 - Metode dan URL: ANY /api/{resource}/{path}
-- Autentikasi: Bearer token wajib, kecuali POST /api/auth/login dan
-  POST /api/auth/register
+- Autentikasi: tidak ditangani oleh Gateway; request diteruskan tanpa validasi token
 - Request body: diteruskan apa adanya ke service tujuan, misalnya untuk
   POST /api/courses:
 
@@ -69,7 +67,6 @@ Setiap respons memuat `meta.request_id`.
 
 | Resource | Service |
 |----------|---------|
-| auth | Authentication |
 | courses | Course |
 | assignments | Assignment |
 | submissions | Submission File |
@@ -92,25 +89,13 @@ Setiap respons memuat `meta.request_id`.
 | Status | error.code | Penyebab |
 |--------|------------|----------|
 | 400 | invalid_json | Body request (Content-Type JSON) pada POST, PUT, atau PATCH bukan JSON yang valid |
-| 401 | unauthorized | Header Authorization tidak ada atau bukan format Bearer |
 | 404 | service_not_found | Nama resource tidak dikenal |
 | 502 | bad_gateway | Respons service bukan JSON yang valid |
 | 503 | service_unavailable | Service tujuan tidak dapat dihubungi |
 | 504 | gateway_timeout | Service tujuan melewati batas timeout (5 detik) |
 
-Contoh respons 401:
-
-```json
-{
-  "success": false,
-  "error": { "code": "unauthorized", "message": "Token tidak ada atau tidak valid" },
-  "meta": { "request_id": "req-001" }
-}
-```
-
 ## Dependensi ke service lain
 
-- Authentication: tujuan request `/api/auth/...` (login dan register tanpa token)
 - Course: tujuan request `/api/courses/...`
 - Assignment: tujuan request `/api/assignments/...`
 - Submission File: tujuan request `/api/submissions/...`

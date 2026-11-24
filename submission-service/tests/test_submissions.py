@@ -18,8 +18,6 @@ def reset_db(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", str(test_root / "test.db"))
     monkeypatch.setenv("UPLOAD_DIR", str(test_root / "uploads"))
     monkeypatch.setenv("MAX_UPLOAD_BYTES", "8")
-    monkeypatch.setenv("AUTH_SERVICE_URL", "http://auth.test")
-    monkeypatch.setenv("AUTH_VALIDATE_PATH", "/api/auth/me")
     monkeypatch.setenv("ASSIGNMENT_SERVICE_URL", "http://assignment.test")
     monkeypatch.setenv("ASSIGNMENT_VALIDATE_PATH", "/api/assignments/{assignment_id}")
     monkeypatch.setenv("NOTIFICATION_SERVICE_URL", "http://notification.test")
@@ -43,8 +41,6 @@ def client_with_transport(handler):
 def api(monkeypatch):
     # Keep tests independent of a developer's local .env (which may contain
     # machine-specific or stale integration endpoints).
-    monkeypatch.setenv("AUTH_SERVICE_URL", "http://auth.test")
-    monkeypatch.setenv("AUTH_VALIDATE_PATH", "/api/auth/me")
     monkeypatch.setenv("ASSIGNMENT_SERVICE_URL", "http://assignment.test")
     monkeypatch.setenv("ASSIGNMENT_VALIDATE_PATH", "/api/assignments/{assignment_id}")
     monkeypatch.setenv("NOTIFICATION_SERVICE_URL", "http://notification.test")
@@ -52,23 +48,16 @@ def api(monkeypatch):
     get_settings.cache_clear()
 
     def handler(request):
-        if "auth.test" in request.url.host:
-            if request.headers.get("authorization") == "Bearer good":
-                assert request.method == "GET"
-                assert request.url.path == "/api/auth/me"
-                return httpx.Response(200, json={"id": "user-1", "role": "mahasiswa"})
-            return httpx.Response(401, json={})
         if "assignment.test" in request.url.host:
-            assert request.headers.get("authorization") == "Bearer good"
+            assert "authorization" not in request.headers
             return httpx.Response(200, json={"success": True, "data": {"id": "a1"}})
         if "notification.test" in request.url.host:
-            assert request.headers.get("authorization") == "Bearer good"
+            assert "authorization" not in request.headers
             assert request.url.path == "/api/notifications"
             return httpx.Response(503, json={})  # Notification failure must not undo creation.
         return httpx.Response(500)
 
     factory = client_with_transport(handler)
-    monkeypatch.setattr("app.services.auth_service.httpx.AsyncClient", factory)
     monkeypatch.setattr("app.services.assignment_service.httpx.AsyncClient", factory)
     monkeypatch.setattr("app.services.notification_service.httpx.AsyncClient", factory)
     with TestClient(app) as test_client:
@@ -94,90 +83,52 @@ def test_openapi_documents_submission_contract(api):
     assert "delete" in schema["paths"]["/api/submissions/{submission_id}"]
 
 
-def test_missing_token_is_401(api):
+def test_missing_token_is_allowed(api):
     response = api.get("/api/submissions?assignment_id=a1")
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "unauthorized"
+    assert response.status_code == 200
 
 
-def test_malformed_authorization_is_401_without_auth_call(api):
+def test_authorization_header_is_ignored(api):
     response = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Basic abc"})
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "unauthorized"
-
-
-def test_auth_invalid_token_is_401(api, monkeypatch):
-    def handler(request):
-        return httpx.Response(401, json={"error": "Unauthorized"})
-
-    monkeypatch.setattr("app.services.auth_service.httpx.AsyncClient", client_with_transport(handler))
-    response = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Bearer expired"})
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "unauthorized"
-
-
-def test_auth_service_unavailable_is_503(api, monkeypatch):
-    def fail(request):
-        raise httpx.ConnectError("offline", request=request)
-
-    monkeypatch.setattr("app.services.auth_service.httpx.AsyncClient", client_with_transport(fail))
-    response = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Bearer good"})
-    assert response.status_code == 503
-    assert response.json()["error"]["code"] == "auth_unavailable"
-
-
-def test_auth_profile_data_envelope(api, monkeypatch):
-    def handler(request):
-        assert request.method == "GET"
-        assert request.headers["authorization"] == "Bearer good"
-        return httpx.Response(200, json={"success": True, "data": {"sub": "user-envelope"}})
-
-    monkeypatch.setattr("app.services.auth_service.httpx.AsyncClient", client_with_transport(handler))
-    response = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Bearer good"})
     assert response.status_code == 200
 
 
 def test_list_empty(api):
-    response = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Bearer good"})
+    response = api.get("/api/submissions?assignment_id=a1")
     assert response.status_code == 200
     assert response.json()["data"]["count"] == 0
 
 
 def test_upload_success_notification_failure_and_delete(api):
     response = api.post("/api/submissions", data={"assignment_id": "a1"},
-                        files={"file": ("answer.txt", b"abc", "text/plain")},
-                        headers={"Authorization": "Bearer good"})
+                        files={"file": ("answer.txt", b"abc", "text/plain")})
     assert response.status_code == 201, response.text
     record = response.json()["data"]["submission"]
     file_path = get_settings().uploads_path / record["stored_filename"]
     assert file_path.is_file()
-    listed = api.get("/api/submissions?assignment_id=a1", headers={"Authorization": "Bearer good"})
+    listed = api.get("/api/submissions?assignment_id=a1")
     assert listed.status_code == 200
     assert listed.json()["data"]["count"] == 1
     assert listed.json()["data"]["items"][0]["id"] == record["id"]
-    deleted = api.delete(f"/api/submissions/{record['id']}", headers={"Authorization": "Bearer good"})
+    deleted = api.delete(f"/api/submissions/{record['id']}")
     assert deleted.status_code == 200
     assert not file_path.exists()
-    assert api.delete(f"/api/submissions/{record['id']}", headers={"Authorization": "Bearer good"}).status_code == 404
+    assert api.delete(f"/api/submissions/{record['id']}").status_code == 404
 
 
 def test_empty_assignment_is_400(api):
     response = api.post("/api/submissions", data={"assignment_id": ""},
-                        files={"file": ("answer.txt", b"abc", "text/plain")},
-                        headers={"Authorization": "Bearer good"})
+                        files={"file": ("answer.txt", b"abc", "text/plain")})
     assert response.status_code == 400
 
 
 def test_invalid_assignment(api, monkeypatch):
     def handler(request):
-        if "auth.test" in request.url.host:
-            return httpx.Response(200, json={"id": "user-1"})
         return httpx.Response(404, json={"success": False})
 
     monkeypatch.setattr("app.services.assignment_service.httpx.AsyncClient", client_with_transport(handler))
     response = api.post("/api/submissions", data={"assignment_id": "bad"},
-                        files={"file": ("answer.txt", b"abc", "text/plain")},
-                        headers={"Authorization": "Bearer good"})
+                        files={"file": ("answer.txt", b"abc", "text/plain")})
     assert response.status_code == 400
 
 
@@ -185,8 +136,6 @@ def test_assignment_success_and_notification_payload(api, monkeypatch):
     seen = {}
 
     def handler(request):
-        if request.url.host == "auth.test":
-            return httpx.Response(200, json={"id": "user-1"})
         if request.url.host == "assignment.test":
             seen["assignment"] = request
             return httpx.Response(200, json={"success": True, "data": {"id": "a1", "title": "Task"}})
@@ -195,30 +144,20 @@ def test_assignment_success_and_notification_payload(api, monkeypatch):
             return httpx.Response(201, json={"success": True, "data": {"id": "notif-1"}})
         return httpx.Response(500)
 
-    def unused_assignment_handler(request):
-        seen["assignment"] = request
-        return httpx.Response(200, json={"success": True, "data": {"id": "a1", "title": "Task"}})
-
-    def unused_notification_handler(request):
-        seen["notification"] = request
-        return httpx.Response(201, json={"success": True, "data": {"id": "notif-1"}})
-
     factory = client_with_transport(handler)
     monkeypatch.setattr("app.services.assignment_service.httpx.AsyncClient", factory)
     monkeypatch.setattr("app.services.notification_service.httpx.AsyncClient", factory)
-    monkeypatch.setattr("app.services.auth_service.httpx.AsyncClient", factory)
     response = api.post("/api/submissions", data={"assignment_id": "a1"},
-                        files={"file": ("answer.txt", b"abc", "text/plain")},
-                        headers={"Authorization": "Bearer good"})
+                        files={"file": ("answer.txt", b"abc", "text/plain")})
     assert response.status_code == 201
     assert seen["assignment"].method == "GET"
     assert seen["assignment"].url.path == "/api/assignments/a1"
-    assert seen["assignment"].headers["authorization"] == "Bearer good"
+    assert "authorization" not in seen["assignment"].headers
     assert seen["notification"].method == "POST"
     assert seen["notification"].url.path == "/api/notifications"
-    assert seen["notification"].headers["authorization"] == "Bearer good"
+    assert "authorization" not in seen["notification"].headers
     payload = __import__("json").loads(seen["notification"].content)
-    assert payload["user_id"] == "user-1"
+    assert payload["user_id"] == "anonymous"
     assert payload["submission_id"] == response.json()["data"]["submission"]["id"]
     assert payload["type"] == "submission"
     assert payload["message"]
@@ -226,22 +165,16 @@ def test_assignment_success_and_notification_payload(api, monkeypatch):
 
 def test_assignment_upstream_error_is_503(api, monkeypatch):
     def handler(request):
-        if request.url.host == "auth.test":
-            return httpx.Response(200, json={"id": "user-1"})
         return httpx.Response(500, json={})
 
     monkeypatch.setattr("app.services.assignment_service.httpx.AsyncClient", client_with_transport(handler))
     response = api.post("/api/submissions", data={"assignment_id": "a1"},
-                        files={"file": ("answer.txt", b"abc", "text/plain")},
-                        headers={"Authorization": "Bearer good"})
+                        files={"file": ("answer.txt", b"abc", "text/plain")})
     assert response.status_code == 503
 
 
 def test_notification_connection_failure_does_not_undo_submission(api, monkeypatch):
     def handler(request):
-        if request.url.host == "auth.test":
-            return httpx.Response(200, json={"id": "user-1", "role": "mahasiswa"})
-
         if request.url.host == "assignment.test":
             return httpx.Response(200, json={"success": True, "data": {"id": "a1"}})
 
@@ -250,16 +183,13 @@ def test_notification_connection_failure_does_not_undo_submission(api, monkeypat
 
         return httpx.Response(500)
 
-    monkeypatch.setattr(
-        "app.services.auth_service.httpx.AsyncClient",
-        client_with_transport(handler)
-    )
+    monkeypatch.setattr("app.services.assignment_service.httpx.AsyncClient", client_with_transport(handler))
+    monkeypatch.setattr("app.services.notification_service.httpx.AsyncClient", client_with_transport(handler))
 
     response = api.post(
         "/api/submissions",
         data={"assignment_id": "a1"},
         files={"file": ("answer.txt", b"abc", "text/plain")},
-        headers={"Authorization": "Bearer good"}
     )
 
     assert response.status_code == 201
@@ -268,52 +198,44 @@ def test_notification_connection_failure_does_not_undo_submission(api, monkeypat
 
 def test_assignment_unavailable(api, monkeypatch):
     def handler(request):
-        if "auth.test" in request.url.host:
-            return httpx.Response(200, json={"id": "user-1"})
         raise httpx.ConnectError("offline", request=request)
 
     monkeypatch.setattr("app.services.assignment_service.httpx.AsyncClient", client_with_transport(handler))
     response = api.post("/api/submissions", data={"assignment_id": "a1"},
-                        files={"file": ("answer.txt", b"abc", "text/plain")},
-                        headers={"Authorization": "Bearer good"})
+                        files={"file": ("answer.txt", b"abc", "text/plain")})
     assert response.status_code == 503
 
 
 def test_upload_size_and_type_validation(api):
-    headers = {"Authorization": "Bearer good"}
     too_big = api.post("/api/submissions", data={"assignment_id": "a1"},
-                       files={"file": ("answer.txt", b"123456789", "text/plain")}, headers=headers)
+                       files={"file": ("answer.txt", b"123456789", "text/plain")})
     assert too_big.status_code == 413
     unsupported = api.post("/api/submissions", data={"assignment_id": "a1"},
-                           files={"file": ("payload.exe", b"x", "application/octet-stream")}, headers=headers)
+                           files={"file": ("payload.exe", b"x", "application/octet-stream")})
     assert unsupported.status_code == 415
 
 
 def test_invalid_submission_input_is_400(api):
-    missing_file = api.post("/api/submissions", data={"assignment_id": "a1"},
-                            headers={"Authorization": "Bearer good"})
+    missing_file = api.post("/api/submissions", data={"assignment_id": "a1"})
     assert missing_file.status_code == 400
     blank_assignment = api.post("/api/submissions", data={"assignment_id": "   "},
-                                files={"file": ("answer.txt", b"abc", "text/plain")},
-                                headers={"Authorization": "Bearer good"})
+                                files={"file": ("answer.txt", b"abc", "text/plain")})
     assert blank_assignment.status_code == 400
 
 
 def test_empty_file_rejected(api):
     response = api.post("/api/submissions", data={"assignment_id": "a1"},
-                        files={"file": ("empty.txt", b"", "text/plain")},
-                        headers={"Authorization": "Bearer good"})
+                        files={"file": ("empty.txt", b"", "text/plain")})
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "empty_file"
 
 
 def test_mime_type_mismatch_rejected(api):
     response = api.post("/api/submissions", data={"assignment_id": "a1"},
-                        files={"file": ("answer.txt", b"abc", "application/pdf")},
-                        headers={"Authorization": "Bearer good"})
+                        files={"file": ("answer.txt", b"abc", "application/pdf")})
     assert response.status_code == 415
 
 
 def test_missing_submission_gets_404(api):
-    response = api.delete("/api/submissions/missing-id", headers={"Authorization": "Bearer good"})
+    response = api.delete("/api/submissions/missing-id")
     assert response.status_code == 404

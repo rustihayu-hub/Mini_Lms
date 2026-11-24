@@ -129,90 +129,6 @@ function nextId(array $data): string
 }
 
 // ==========================================================
-// 3. VALIDASI TOKEN (benar-benar ke Authentication Service)
-// ==========================================================
-
-function getAuthorizationHeader(): string
-{
-    if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
-        return trim($_SERVER['HTTP_AUTHORIZATION']);
-    }
-    if (function_exists('getallheaders')) {
-        foreach (getallheaders() as $name => $value) {
-            if (strtolower($name) === 'authorization') {
-                return trim($value);
-            }
-        }
-    }
-    return '';
-}
-
-/**
- * Pastikan request membawa token yang valid. Jika tidak:
- *   401 = token tidak ada / ditolak Authentication
- *   502 = Authentication membalas dengan respons yang rusak
- *   503 = Authentication tidak dapat dihubungi
- *   504 = Authentication melewati batas waktu
- */
-function requireValidToken(): void
-{
-    global $config, $requestId;
-
-    $auth = getAuthorizationHeader();
-    if (!preg_match('/^Bearer\s+\S+$/i', $auth)) {
-        sendError(401, 'unauthorized', 'Header Authorization: Bearer <token> diperlukan');
-    }
-
-    // Mode uji mandiri: hanya memeriksa bentuk header (tidak untuk demo).
-    if ($config['auth_mode'] === 'format_only') {
-        return;
-    }
-
-    $url = rtrim($config['auth_url'], '/') . $config['auth_validate_path'];
-
-    if (!function_exists('curl_init')) {
-        sendError(500, 'config_error', 'Ekstensi PHP cURL belum aktif (diperlukan untuk memanggil Authentication)');
-    }
-
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => $config['timeout'],
-        CURLOPT_TIMEOUT        => $config['timeout'],
-        CURLOPT_HTTPHEADER     => [
-            'Accept: application/json',
-            'Authorization: ' . $auth,
-            'X-Request-ID: ' . $requestId,
-        ],
-    ]);
-    $body   = curl_exec($ch);
-    $errno  = curl_errno($ch);
-    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($errno === CURLE_OPERATION_TIMEDOUT) {
-        sendError(504, 'auth_timeout', 'Authentication Service terlalu lama menjawab');
-    }
-    if ($errno !== 0 || $body === false) {
-        sendError(503, 'auth_unavailable', 'Authentication Service tidak dapat dihubungi');
-    }
-    if ($status === 401 || $status === 403) {
-        sendError(401, 'unauthorized', 'Token tidak valid atau sudah kedaluwarsa');
-    }
-    if ($status !== 200) {
-        sendError(502, 'auth_bad_response', 'Authentication Service membalas dengan status tidak terduga');
-    }
-
-    $json = json_decode($body, true);
-    if (!is_array($json)) {
-        sendError(502, 'auth_bad_response', 'Respons Authentication Service bukan JSON yang valid');
-    }
-    if (array_key_exists('success', $json) && $json['success'] !== true) {
-        sendError(401, 'unauthorized', 'Token tidak valid');
-    }
-}
-
-// ==========================================================
 // 4. ROUTING
 // ==========================================================
 
@@ -226,7 +142,6 @@ if ($path === '/health') {
 
 // ---------- GET /api/notifications?user_id=... ----------
 if ($path === '/api/notifications' && $method === 'GET') {
-    requireValidToken();
 
     $userId = trim((string) ($_GET['user_id'] ?? ''));
     if ($userId === '') {
@@ -243,7 +158,6 @@ if ($path === '/api/notifications' && $method === 'GET') {
 
 // ---------- POST /api/notifications ----------
 if ($path === '/api/notifications' && $method === 'POST') {
-    requireValidToken();
 
     $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
     if (stripos($contentType, 'application/json') === false) {
@@ -294,7 +208,6 @@ if ($path === '/api/notifications' && $method === 'POST') {
 
 // ---------- PATCH /api/notifications/{id}/read ----------
 if (preg_match('#^/api/notifications/([^/]+)/read$#', $path, $m) && $method === 'PATCH') {
-    requireValidToken();
 
     $notificationId = urldecode($m[1]);
 
